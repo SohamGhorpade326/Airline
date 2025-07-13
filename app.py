@@ -2,11 +2,13 @@ import os
 import pandas as pd
 from flask import Flask, render_template, request, Response
 from dotenv import load_dotenv
+import google.generativeai as genai
 
 app = Flask(__name__)
 
 # Load .env variables
 load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def load_process(filter_city=None):
     df = pd.read_csv('static/data/us_airline_fares.csv')
@@ -32,9 +34,31 @@ def load_process(filter_city=None):
     cities = sorted(df['city1'].unique().tolist())
     return popular_routes, avg_price, demand, cities
 
-# Dummy placeholder since summary field is used in HTML
 def generate_summary(popular_routes, avg_price, demand):
-    return "📊 AI summary is currently disabled."
+    try:
+        model = genai.GenerativeModel("gemini-pro")
+
+        top_route = popular_routes.iloc[0]['route']
+        top_count = int(popular_routes.iloc[0]['count'])
+        max_demand_month = demand.iloc[demand['bookings'].idxmax()]['month']
+        price_min = int(avg_price['average_fare'].min())
+        price_max = int(avg_price['average_fare'].max())
+
+        prompt = (
+            f"Summarize this airline booking demand data:\n"
+            f"- Most popular route: {top_route} with {top_count} bookings\n"
+            f"- Month with highest demand: {max_demand_month}\n"
+            f"- Average fares range: ${price_min} to ${price_max}\n"
+            f"Generate a short 2-line market insight summary."
+        )
+
+        response = model.generate_content(prompt)
+        return response.text.strip()
+
+    except Exception as e:
+        return f"⚠️ Gemini error: {e}"
+
+
 
 @app.route('/')
 def index():
