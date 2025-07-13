@@ -1,0 +1,109 @@
+<!-- Start of index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>✈️ Airline Market Demand Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+
+  <h1 class="mb-4 text-primary">✈️ Airline Market Demand Dashboard</h1>
+
+  <!-- 🔍 Filter + Download -->
+  <form method="get" class="d-flex mb-4">
+    <select name="filter_city" class="form-select w-25">
+      <option value="">🌍 Filter by City</option>
+      {% for city in cities %}
+        <option value="{{ city }}" {% if city == selected_city %}selected{% endif %}>{{ city }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-info ms-2">🔄 Apply</button>
+    <a href="{{ url_for('download_csv', datatype='popular_routes') }}" class="btn btn-success ms-2">⬇️ Download Routes</a>
+    <a href="{{ url_for('download_csv', datatype='average_fare') }}" class="btn btn-warning ms-2">⬇️ Download Prices</a>
+    <a href="{{ url_for('download_csv', datatype='demand') }}" class="btn btn-secondary ms-2">⬇️ Download Demand</a>
+  </form>
+
+  <!-- 🧭 Top 5 Popular Routes -->
+  <h3 class="text-dark">🔥 Top 5 Popular Routes</h3>
+  <table class="table table-bordered">
+    <thead class="table-light"><tr><th>Route</th><th>Bookings</th></tr></thead>
+    <tbody>
+      {% for r in routes %}
+        <tr><td>{{ r.route }}</td><td>{{ r.count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- 💸 Average Fare Chart -->
+  <h3 class="text-dark mt-5">💸 Average Fare for Top 20 Routes</h3>
+  <canvas id="fareChart" height="300"></canvas>
+
+  <!-- 📈 Monthly Booking Demand -->
+  <h3 class="text-dark mt-5">📅 Monthly Booking Demand</h3>
+  {% if demand|length > 0 %}
+    <canvas id="demandChart" height="300"></canvas>
+  {% else %}
+    <p><i>No monthly data available.</i></p>
+  {% endif %}
+
+  <!-- 🧠 Gemini Insight -->
+ 
+</div>
+
+<!-- Chart Scripts -->
+<script>
+  // Fare Chart
+  const fareCtx = document.getElementById('fareChart').getContext('2d');
+  new Chart(fareCtx, {
+    type: 'bar',
+    data: {
+      labels: {{ price_trend | map(attribute='route') | list | tojson }},
+      datasets: [{
+        label: 'Average Fare ($)',
+        data: {{ price_trend | map(attribute='average_fare') | list | tojson }},
+        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+      }]
+    },
+    options: {
+      responsive: true,
+      indexAxis: 'y',
+      plugins: {
+        title: {
+          display: true,
+          text: 'Top 20 Routes by Average Fare'
+        }
+      }
+    }
+  });
+
+  // Demand Chart
+  {% if demand|length > 0 %}
+  const demandCtx = document.getElementById('demandChart').getContext('2d');
+  new Chart(demandCtx, {
+    type: 'line',
+    data: {
+      labels: {{ demand | map(attribute='month') | list | tojson }},
+      datasets: [{
+        label: 'Bookings',
+        data: {{ demand | map(attribute='bookings') | list | tojson }},
+        borderColor: 'green',
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Monthly Booking Trend'
+        }
+      }
+    }
+  });
+  {% endif %}
+</script>
+</body>
+</html>
